@@ -55,12 +55,6 @@ def monitor_network():
     return traffic_data
 
 
-def get_ad_traffic(hostname, traffic_data):
-    if rules.should_block(hostname):
-        return traffic_data
-    return {'bytes_sent': 0, 'bytes_received': 0}
-
-
 def save_to_json(data, filename):
     with open(filename, 'w') as file:
         json.dump(data, file, indent=4)
@@ -118,25 +112,18 @@ def main():
             download_speed, upload_speed, latency = test_speed()
             traffic_data = monitor_network()
 
-            ad_traffic = {}
-            for iface in traffic_data:
-                hostname = socket.gethostbyaddr(iface)[0]
-                ad_traffic[iface] = get_ad_traffic(
-                    hostname, traffic_data[iface])
-
             result = {
                 'timestamp': timestamp,
                 'download_speed': download_speed,
                 'upload_speed': upload_speed,
                 'latency': latency,
-                'traffic_data': traffic_data,
-                'ad_traffic': ad_traffic
+                'traffic_data': traffic_data
             }
             results.append(result)
             save_to_json(results, 'network_data.json')
 
             print(f"Timestamp: {timestamp} | Download: {download_speed:.2f} Mbps | Upload: {upload_speed:.2f} Mbps | "
-                  f"Latency: {latency:.2f} ms | Traffic data: {traffic_data} | Ad traffic: {ad_traffic}")
+                  f"Latency: {latency:.2f} ms | Traffic data: {traffic_data}")
 
             time.sleep(app.interval)
 
@@ -148,5 +135,5 @@ def main():
     run_tests()
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     main()
