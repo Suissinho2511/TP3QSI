@@ -1,8 +1,8 @@
+from logging import root
 import threading
 import json
 import time
 import os
-import socket
 import tkinter as tk
 from tkinter import ttk
 from urllib.parse import urlparse
@@ -60,6 +60,16 @@ def save_to_json(data, filename):
         json.dump(data, file, indent=4)
 
 
+def display_results(download_speed, upload_speed, latency, traffic_data):
+    download_speed_label.config(
+        text=f"Velocidade de Download: {download_speed:.2f} Mbps")
+    upload_speed_label.config(
+        text=f"Velocidade de Upload: {upload_speed:.2f} Mbps")
+    latency_label.config(text=f"Latência: {latency:.2f} ms")
+    traffic_data_label.config(
+        text=f"Dados de Tráfego: {json.dumps(traffic_data, indent=2)}")
+
+
 def create_gui():
     def update_interval():
         try:
@@ -90,6 +100,21 @@ def create_gui():
     update_button = ttk.Button(
         mainframe, text="Atualizar Intervalo", command=update_interval)
     update_button.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
+
+    download_speed_label = ttk.Label(mainframe)
+    download_speed_label.grid(
+        row=3, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
+
+    upload_speed_label = ttk.Label(mainframe)
+    upload_speed_label.grid(
+        row=4, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
+
+    latency_label = ttk.Label(mainframe)
+    latency_label.grid(row=5, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
+
+    traffic_data_label = ttk.Label(mainframe)
+    traffic_data_label.grid(
+        row=6, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
 
     root.mainloop()
 
@@ -125,12 +150,21 @@ def main():
             print(f"Timestamp: {timestamp} | Download: {download_speed:.2f} Mbps | Upload: {upload_speed:.2f} Mbps | "
                   f"Latency: {latency:.2f} ms | Traffic data: {traffic_data}")
 
+            root.after(0, display_results, download_speed,
+                       upload_speed, latency, traffic_data)
+
             time.sleep(app.interval)
 
     # Inicie a interface gráfica do usuário e as medições em threads separadas
-    gui_thread = threading.Thread(target=create_gui)
-    gui_thread.daemon = True
+    gui_thread = threading.Thread(target=create_gui, name="GUI Thread")
     gui_thread.start()
+
+    run_tests_thread = threading.Thread(
+        target=run_tests, name="Run Tests Thread")
+    run_tests_thread.start()
+
+    gui_thread.join()
+    run_tests_thread.join()
 
     run_tests()
 
