@@ -2,7 +2,6 @@ import threading
 import json
 import time
 import os
-import socket
 import tkinter as tk
 from tkinter import ttk
 from urllib.parse import urlparse
@@ -10,6 +9,8 @@ from datetime import datetime
 import psutil
 import speedtest
 from adblockparser import AdblockRules
+from scapy.all import *
+from scapy.layers.inet import IP, TCP, UDP
 
 
 class AppConfig:
@@ -18,6 +19,30 @@ class AppConfig:
 
 
 app = AppConfig()
+
+
+def packet_analysis(packet):
+    # Verificar se o pacote é IP
+    if packet.haslayer(IP):
+        src_ip = packet[IP].src
+        dst_ip = packet[IP].dst
+        protocol = packet[IP].proto
+
+        # Verificar se é TCP ou UDP e obter a porta de origem e destino
+        if protocol == 6:  # TCP
+            src_port = packet[TCP].sport
+            dst_port = packet[TCP].dport
+        elif protocol == 17:  # UDP
+            src_port = packet[UDP].sport
+            dst_port = packet[UDP].dport
+        else:
+            src_port = dst_port = None
+
+        print(
+            f"IP src: {src_ip} | IP dst: {dst_ip} | Protocol: {protocol} | Src port: {src_port} | Dst port: {dst_port}")
+    else:
+        print("Pacote não-IP detectado.")
+
 
 # Carregar regras do Adblock
 with open("easylist.txt", "r", encoding="utf-8") as f:
@@ -126,6 +151,15 @@ def main():
                   f"Latency: {latency:.2f} ms | Traffic data: {traffic_data}")
 
             time.sleep(app.interval)
+
+     # Inicie a captura de pacotes em uma nova thread
+
+    def capture_packets():
+        sniff(filter="ip", prn=packet_analysis)
+
+    packet_capture_thread = threading.Thread(target=capture_packets)
+    packet_capture_thread.daemon = True
+    packet_capture_thread.start()
 
     # Inicie a interface gráfica do usuário e as medições em threads separadas
     gui_thread = threading.Thread(target=create_gui)
