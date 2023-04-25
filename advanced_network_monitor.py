@@ -2,47 +2,25 @@ import threading
 import json
 import time
 import os
+import socket
 import tkinter as tk
 from tkinter import ttk
-from urllib.parse import urlparse
 from datetime import datetime
 import psutil
 import speedtest
 from adblockparser import AdblockRules
 from scapy.all import *
-from scapy.layers.inet import IP, TCP, UDP
+from scapy.layers.inet import IP
 
 
 class AppConfig:
     def __init__(self):
         self.interval = 60
+        self.total_traffic = 0
+        self.ad_traffic = 0
 
 
 app = AppConfig()
-
-
-def packet_analysis(packet):
-    # Verificar se o pacote é IP
-    if packet.haslayer(IP):
-        src_ip = packet[IP].src
-        dst_ip = packet[IP].dst
-        protocol = packet[IP].proto
-
-        # Verificar se é TCP ou UDP e obter a porta de origem e destino
-        if protocol == 6:  # TCP
-            src_port = packet[TCP].sport
-            dst_port = packet[TCP].dport
-        elif protocol == 17:  # UDP
-            src_port = packet[UDP].sport
-            dst_port = packet[UDP].dport
-        else:
-            src_port = dst_port = None
-
-        print(
-            f"IP src: {src_ip} | IP dst: {dst_ip} | Protocol: {protocol} | Src port: {src_port} | Dst port: {dst_port}")
-    else:
-        print("Pacote não-IP detectado.")
-
 
 # Carregar regras do Adblock
 with open("easylist.txt", "r", encoding="utf-8") as f:
@@ -66,6 +44,17 @@ def get_network_traffic():
     return net_io
 
 
+def get_ad_traffic_percentage(traffic_data):
+    ad_bytes = sum([traffic_data[iface]['ad_bytes'] for iface in traffic_data])
+    total_bytes = sum([traffic_data[iface]['bytes_received']
+                      for iface in traffic_data])
+
+    if total_bytes == 0:
+        return 0.0
+
+    return (ad_bytes / total_bytes) * 100
+
+
 def monitor_network():
     prev_net_io = get_network_traffic()
     time.sleep(1)
@@ -75,7 +64,8 @@ def monitor_network():
     for iface in curr_net_io:
         traffic_data[iface] = {
             'bytes_sent': curr_net_io[iface].bytes_sent - prev_net_io[iface].bytes_sent,
-            'bytes_received': curr_net_io[iface].bytes_recv - prev_net_io[iface].bytes_recv
+            'bytes_received': curr_net_io[iface].bytes_recv - prev_net_io[iface].bytes_recv,
+            'ad_bytes': 0  # Inicialize ad_bytes como 0
         }
     return traffic_data
 
@@ -83,6 +73,26 @@ def monitor_network():
 def save_to_json(data, filename):
     with open(filename, 'w') as file:
         json.dump(data, file, indent=4)
+
+
+def packet_analysis(pkt, traffic_data):
+    if IP in pkt:
+        app.total_traffic += len(pkt)
+        host = pkt[IP].dst
+        try:
+            hostname = socket.gethostbyaddr(host)[0]
+            if rules.should_block(hostname):
+                app.ad_traffic += len(pkt)
+                iface = pkt.sniffed_on
+                if iface not in traffic_data:
+                    traffic_data[iface] = {'ad_bytes': 0}
+                traffic_data[iface]['ad_bytes'] += len(pkt)
+        except socket.herror:
+            pass
+
+
+def capture_packets(traffic_data):
+    sniff(filter="ip", prn=lambda pkt: packet_analysis(pkt, traffic_data))
 
 
 def create_gui():
@@ -136,35 +146,31 @@ def main():
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             download_speed, upload_speed, latency = test_speed()
             traffic_data = monitor_network()
+            ad_traffic_percentage = get_ad_traffic_percentage(traffic_data)
 
             result = {
                 'timestamp': timestamp,
                 'download_speed': download_speed,
                 'upload_speed': upload_speed,
                 'latency': latency,
+                'ad_traffic_percentage': ad_traffic_percentage,
                 'traffic_data': traffic_data
             }
             results.append(result)
             save_to_json(results, 'network_data.json')
 
-            print(f"Timestamp: {timestamp} | Download: {download_speed:.2f} Mbps | Upload: {upload_speed:.2f} Mbps | "
-                  f"Latency: {latency:.2f} ms | Traffic data: {traffic_data}")
-
             time.sleep(app.interval)
-
-     # Inicie a captura de pacotes em uma nova thread
-
-    def capture_packets():
-        sniff(filter="ip", prn=packet_analysis)
-
-    packet_capture_thread = threading.Thread(target=capture_packets)
-    packet_capture_thread.daemon = True
-    packet_capture_thread.start()
 
     # Inicie a interface gráfica do usuário e as medições em threads separadas
     gui_thread = threading.Thread(target=create_gui)
     gui_thread.daemon = True
     gui_thread.start()
+
+    traffic_data = {}
+    packet_capture_thread = threading.Thread(
+        target=lambda: capture_packets(traffic_data))
+    packet_capture_thread.daemon = True
+    packet_capture_thread.start()
 
     run_tests()
 
