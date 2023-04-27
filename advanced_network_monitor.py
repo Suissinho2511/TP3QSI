@@ -10,7 +10,8 @@ import psutil
 import speedtest
 from adblockparser import AdblockRules
 from scapy.all import *
-from scapy.layers.inet import IP
+from scapy.layers.inet import IP, TCP
+from scapy.layers.http import HTTPRequest
 
 
 class AppConfig:
@@ -22,7 +23,53 @@ class AppConfig:
 
 app = AppConfig()
 
-# Carregar regras do Adblock
+
+def is_ad_hostname(hostname):
+    try:
+        return hostname in ad_domains or rules.should_block(hostname)
+    except Exception:
+        return False
+
+
+def load_ad_domains(filename):
+    ad_domains = set()
+    with open(filename, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#'):
+                ad_domains.add(line)
+    return ad_domains
+
+
+ad_domains = load_ad_domains("ad_domains.txt")
+
+
+def packet_analysis(pkt, traffic_data):
+    if IP in pkt and TCP in pkt:
+        app.total_traffic += len(pkt)
+        host = pkt[IP].dst
+        try:
+            hostname = socket.gethostbyaddr(host)[0]
+            if is_ad_hostname(hostname):
+                app.ad_traffic += len(pkt)
+                iface = pkt.sniffed_on
+                if iface not in traffic_data:
+                    traffic_data[iface] = {'ad_bytes': 0}
+                traffic_data[iface]['ad_bytes'] += len(pkt)
+        except socket.herror:
+            pass
+
+    if HTTPRequest in pkt:
+        app.total_traffic += len(pkt)
+        hostname = pkt[HTTPRequest].fields.get(b"Host")
+        if hostname and is_ad_hostname(hostname.decode()):
+            app.ad_traffic += len(pkt)
+            iface = pkt.sniffed_on
+            if iface not in traffic_data:
+                traffic_data[iface] = {'ad_bytes': 0}
+            traffic_data[iface]['ad_bytes'] += len(pkt)
+
+
 with open("easylist.txt", "r", encoding="utf-8") as f:
     raw_rules = f.readlines()
 rules = AdblockRules(raw_rules)
@@ -73,22 +120,6 @@ def monitor_network():
 def save_to_json(data, filename):
     with open(filename, 'w') as file:
         json.dump(data, file, indent=4)
-
-
-def packet_analysis(pkt, traffic_data):
-    if IP in pkt:
-        app.total_traffic += len(pkt)
-        host = pkt[IP].dst
-        try:
-            hostname = socket.gethostbyaddr(host)[0]
-            if rules.should_block(hostname):
-                app.ad_traffic += len(pkt)
-                iface = pkt.sniffed_on
-                if iface not in traffic_data:
-                    traffic_data[iface] = {'ad_bytes': 0}
-                traffic_data[iface]['ad_bytes'] += len(pkt)
-        except socket.herror:
-            pass
 
 
 def capture_packets(traffic_data):

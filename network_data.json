@@ -1,9 +1,9 @@
 [
     {
-        "timestamp": "2023-04-25 20:40:20",
-        "download_speed": 97.02003786968216,
-        "upload_speed": 83.13462874736719,
-        "latency": 9.464,
+        "timestamp": "2023-04-26 14:30:24",
+        "download_speed": 10.957437855829394,
+        "upload_speed": 0.5126259695572258,
+        "latency": 47.293,
         "ad_traffic_percentage": 0.0,
         "traffic_data": {
             "Ethernet": {
@@ -36,14 +36,161 @@
                 "bytes_received": 0,
                 "ad_bytes": 0
             },
+            "Loopback Pseudo-Interface 1": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
             "Wi-Fi": {
-                "bytes_sent": 1436,
-                "bytes_received": 8101,
+                "bytes_sent": 52688,
+                "bytes_received": 1683,
+                "ad_bytes": 0
+            }
+        }
+    },
+    {
+        "timestamp": "2023-04-26 14:31:11",
+        "download_speed": 13.073810601960846,
+        "upload_speed": 0.4874298936432103,
+        "latency": 42.733,
+        "ad_traffic_percentage": 0.0,
+        "traffic_data": {
+            "Ethernet": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "VirtualBox Host-Only Network": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "VirtualBox Host-Only Network #2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Ethernet 2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Local Area Connection* 1": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Local Area Connection* 2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
                 "ad_bytes": 0
             },
             "Loopback Pseudo-Interface 1": {
                 "bytes_sent": 0,
                 "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Wi-Fi": {
+                "bytes_sent": 47743,
+                "bytes_received": 3185,
+                "ad_bytes": 0
+            }
+        }
+    },
+    {
+        "timestamp": "2023-04-26 14:34:59",
+        "download_speed": 12.921150062760654,
+        "upload_speed": 0.5805208970468094,
+        "latency": 53.348,
+        "ad_traffic_percentage": 0.0,
+        "traffic_data": {
+            "Ethernet": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "VirtualBox Host-Only Network": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "VirtualBox Host-Only Network #2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Ethernet 2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Local Area Connection* 1": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Local Area Connection* 2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Loopback Pseudo-Interface 1": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Wi-Fi": {
+                "bytes_sent": 54260,
+                "bytes_received": 1584,
+                "ad_bytes": 0
+            }
+        }
+    },
+    {
+        "timestamp": "2023-04-26 14:35:44",
+        "download_speed": 11.764788335433037,
+        "upload_speed": 0.4764239059835812,
+        "latency": 34.917,
+        "ad_traffic_percentage": 0.0,
+        "traffic_data": {
+            "Ethernet": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "VirtualBox Host-Only Network": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "VirtualBox Host-Only Network #2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Ethernet 2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Local Area Connection* 1": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Local Area Connection* 2": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Loopback Pseudo-Interface 1": {
+                "bytes_sent": 0,
+                "bytes_received": 0,
+                "ad_bytes": 0
+            },
+            "Wi-Fi": {
+                "bytes_sent": 54283,
+                "bytes_received": 1176,
                 "ad_bytes": 0
             }
         }
