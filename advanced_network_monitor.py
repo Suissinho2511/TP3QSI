@@ -1,6 +1,5 @@
 import csv
 import os
-import matplotlib as mpl
 import speedtest
 import tkinter as tk
 from datetime import datetime
@@ -55,22 +54,26 @@ def update_graphs():
         upload_speeds = [result['upload_speed'] for result in results]
         latencies = [result['latency'] for result in results]
 
+        if len(results) > 20:
+            results.pop(0)
+
     ax[0].clear()
     ax[1].clear()
     ax[2].clear()
 
+    ax[0].scatter(timestamps, download_speeds, s=10,
+                  c='r', label='Pontos de Download')
+    ax[1].scatter(timestamps, upload_speeds, s=10,
+                  c='b', label='Pontos de Upload')
+    ax[2].scatter(timestamps, latencies, s=10,
+                  c='g', label='Pontos de Latência')
+
     ax[0].plot(timestamps, download_speeds, linestyle='--',
                linewidth=0.5, alpha=0.5, color='r')
-    ax[0].scatter(timestamps, download_speeds, s=10,
-                  c='r', label='Download')
     ax[1].plot(timestamps, upload_speeds, linestyle='--',
                linewidth=0.5, alpha=0.5, color='b')
-    ax[1].scatter(timestamps, upload_speeds, s=10,
-                  c='b', label='Upload')
     ax[2].plot(timestamps, latencies, linestyle='--',
                linewidth=0.5, alpha=0.5, color='g')
-    ax[2].scatter(timestamps, latencies, s=10,
-                  c='g', label='Latência')
 
     ax[0].set_ylabel('Mbps')
     ax[2].set_ylabel('ms')
