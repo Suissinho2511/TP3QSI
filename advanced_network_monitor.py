@@ -1,209 +1,120 @@
-import threading
-import json
-import time
+import csv
 import os
-import socket
-import tkinter as tk
-from tkinter import ttk
-from datetime import datetime
-import psutil
+import matplotlib as mpl
 import speedtest
-from adblockparser import AdblockRules
-from scapy.all import *
-from scapy.layers.inet import IP, TCP
-from scapy.layers.http import HTTPRequest
+import tkinter as tk
+from datetime import datetime
+import time
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import threading
+
+results = []
+results_lock = threading.Lock()
 
 
-class AppConfig:
-    def __init__(self):
-        self.interval = 60
-        self.total_traffic = 0
-        self.ad_traffic = 0
+class SpeedTestApp:
+    def __init__(self, interval):
+        self.interval = interval
+
+    def run(self):
+        while True:
+            result = self.perform_speedtest()
+            with results_lock:
+                results.append(result)
+                self.save_result_to_csv(result)
+            print(f"{result['timestamp']} - Download: {result['download_speed']} Mbps, Upload: {result['upload_speed']} Mbps, Latency: {result['latency']} ms")
+            time.sleep(self.interval)
+
+    def perform_speedtest(self):
+        st = speedtest.Speedtest()
+        st.get_best_server()
+        download_speed = round(st.download() / (10**6), 2)
+        upload_speed = round(st.upload() / (10**6), 2)
+        latency = round(st.results.ping, 2)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        return {'timestamp': timestamp, 'download_speed': download_speed, 'upload_speed': upload_speed, 'latency': latency}
+
+    def save_result_to_csv(self, result):
+        csv_file = 'speedtest_results.csv'
+        file_exists = os.path.isfile(csv_file)
+        fieldnames = ['timestamp', 'download_speed', 'upload_speed', 'latency']
+
+        with open(csv_file, 'a', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(result)
 
 
-app = AppConfig()
+def update_graphs():
+    with results_lock:
+        timestamps = [result['timestamp'] for result in results]
+        download_speeds = [result['download_speed'] for result in results]
+        upload_speeds = [result['upload_speed'] for result in results]
+        latencies = [result['latency'] for result in results]
 
+    ax[0].clear()
+    ax[1].clear()
+    ax[2].clear()
 
-def is_ad_hostname(hostname):
-    try:
-        return hostname in ad_domains or rules.should_block(hostname)
-    except Exception:
-        return False
+    ax[0].plot(timestamps, download_speeds, linestyle='--',
+               linewidth=0.5, alpha=0.5, color='r')
+    ax[0].scatter(timestamps, download_speeds, s=10,
+                  c='r', label='Download')
+    ax[1].plot(timestamps, upload_speeds, linestyle='--',
+               linewidth=0.5, alpha=0.5, color='b')
+    ax[1].scatter(timestamps, upload_speeds, s=10,
+                  c='b', label='Upload')
+    ax[2].plot(timestamps, latencies, linestyle='--',
+               linewidth=0.5, alpha=0.5, color='g')
+    ax[2].scatter(timestamps, latencies, s=10,
+                  c='g', label='Latência')
 
+    ax[0].set_ylabel('Mbps')
+    ax[2].set_ylabel('ms')
 
-def load_ad_domains(filename):
-    ad_domains = set()
-    with open(filename, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#'):
-                ad_domains.add(line)
-    return ad_domains
+    ax[0].set_title('Velocidade de Download')
+    ax[1].set_title('Velocidade de Upload')
+    ax[2].set_title('Latência')
 
+    for axis in ax:
+        axis.grid(True, linestyle='--', linewidth=0.5, alpha=0.5)
+        axis.set_axisbelow(True)
+        axis.legend()
+        for label in axis.get_xticklabels():
+            label.set_rotation(45)
 
-ad_domains = load_ad_domains("ad_domains.txt")
-
-
-def packet_analysis(pkt, traffic_data):
-    if IP in pkt and TCP in pkt:
-        app.total_traffic += len(pkt)
-        host = pkt[IP].dst
-        try:
-            hostname = socket.gethostbyaddr(host)[0]
-            if is_ad_hostname(hostname):
-                app.ad_traffic += len(pkt)
-                iface = pkt.sniffed_on
-                if iface not in traffic_data:
-                    traffic_data[iface] = {'ad_bytes': 0}
-                traffic_data[iface]['ad_bytes'] += len(pkt)
-        except socket.herror:
-            pass
-
-    if HTTPRequest in pkt:
-        app.total_traffic += len(pkt)
-        hostname = pkt[HTTPRequest].fields.get(b"Host")
-        if hostname and is_ad_hostname(hostname.decode()):
-            app.ad_traffic += len(pkt)
-            iface = pkt.sniffed_on
-            if iface not in traffic_data:
-                traffic_data[iface] = {'ad_bytes': 0}
-            traffic_data[iface]['ad_bytes'] += len(pkt)
-
-
-with open("easylist.txt", "r", encoding="utf-8") as f:
-    raw_rules = f.readlines()
-rules = AdblockRules(raw_rules)
-
-
-def test_speed():
-    st = speedtest.Speedtest()
-    st.get_best_server()
-
-    download_speed = st.download() / 1024 / 1024  # Converter para Mbps
-    upload_speed = st.upload() / 1024 / 1024     # Converter para Mbps
-    latency = st.results.ping                    # Latência em ms
-
-    return download_speed, upload_speed, latency
-
-
-def get_network_traffic():
-    net_io = psutil.net_io_counters(pernic=True)
-    return net_io
-
-
-def get_ad_traffic_percentage(traffic_data):
-    ad_bytes = sum([traffic_data[iface]['ad_bytes'] for iface in traffic_data])
-    total_bytes = sum([traffic_data[iface]['bytes_received']
-                      for iface in traffic_data])
-
-    if total_bytes == 0:
-        return 0.0
-
-    return (ad_bytes / total_bytes) * 100
-
-
-def monitor_network():
-    prev_net_io = get_network_traffic()
-    time.sleep(1)
-    curr_net_io = get_network_traffic()
-
-    traffic_data = {}
-    for iface in curr_net_io:
-        traffic_data[iface] = {
-            'bytes_sent': curr_net_io[iface].bytes_sent - prev_net_io[iface].bytes_sent,
-            'bytes_received': curr_net_io[iface].bytes_recv - prev_net_io[iface].bytes_recv,
-            'ad_bytes': 0  # Inicialize ad_bytes como 0
-        }
-    return traffic_data
-
-
-def save_to_json(data, filename):
-    with open(filename, 'w') as file:
-        json.dump(data, file, indent=4)
-
-
-def capture_packets(traffic_data):
-    sniff(filter="ip", prn=lambda pkt: packet_analysis(pkt, traffic_data))
+    plt.tight_layout()
+    canvas.draw()
+    root.after(app.interval * 1000, update_graphs)
 
 
 def create_gui():
-    def update_interval():
-        try:
-            interval = int(interval_var.get())
-            if interval < 1:
-                raise ValueError
-            app.interval = interval
-            interval_label.config(
-                text=f"Intervalo atual: {app.interval} segundos")
-        except ValueError:
-            interval_label.config(
-                text="Intervalo inválido. Insira um número inteiro maior que 0.")
+    global root, canvas, ax
 
     root = tk.Tk()
-    root.title("Monitor de Rede Avançado")
+    root.title("Advanced Network Monitor")
+    mainframe = tk.Frame(root)
+    mainframe.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
 
-    mainframe = ttk.Frame(root, padding="10")
-    mainframe.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+    fig, ax = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
+    canvas = FigureCanvasTkAgg(fig, master=mainframe)
+    canvas.get_tk_widget().grid(row=3, column=0, padx=5, pady=5)
 
-    interval_label = ttk.Label(
-        mainframe, text=f"Intervalo atual: {app.interval} segundos")
-    interval_label.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
-
-    interval_var = tk.StringVar()
-    interval_entry = ttk.Entry(mainframe, textvariable=interval_var)
-    interval_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), padx=5)
-
-    update_button = ttk.Button(
-        mainframe, text="Atualizar Intervalo", command=update_interval)
-    update_button.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=5, pady=5)
+    update_graphs()
 
     root.mainloop()
 
 
 def main():
-    results = []
+    global app
+    app = SpeedTestApp(interval=10)
+    speedtest_thread = threading.Thread(target=app.run, daemon=True)
+    speedtest_thread.start()
 
-    if not os.path.exists('network_data.json'):
-        with open('network_data.json', 'w') as file:
-            json.dump([], file)
-
-    with open('network_data.json', 'r') as file:
-        data = json.load(file)
-        if data:
-            results = data
-
-    def run_tests():
-        while True:
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            download_speed, upload_speed, latency = test_speed()
-            traffic_data = monitor_network()
-            ad_traffic_percentage = get_ad_traffic_percentage(traffic_data)
-
-            result = {
-                'timestamp': timestamp,
-                'download_speed': download_speed,
-                'upload_speed': upload_speed,
-                'latency': latency,
-                'ad_traffic_percentage': ad_traffic_percentage,
-                'traffic_data': traffic_data
-            }
-            results.append(result)
-            save_to_json(results, 'network_data.json')
-
-            time.sleep(app.interval)
-
-    # Inicie a interface gráfica do usuário e as medições em threads separadas
-    gui_thread = threading.Thread(target=create_gui)
-    gui_thread.daemon = True
-    gui_thread.start()
-
-    traffic_data = {}
-    packet_capture_thread = threading.Thread(
-        target=lambda: capture_packets(traffic_data))
-    packet_capture_thread.daemon = True
-    packet_capture_thread.start()
-
-    run_tests()
+    create_gui()
 
 
 if __name__ == "__main__":
