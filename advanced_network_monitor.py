@@ -14,9 +14,17 @@ results_lock = threading.Lock()
 
 class SpeedTestApp:
     def __init__(self, interval):
+        """
+        Inicializa a aplicação com um intervalo específico entre os testes de velocidade.
+
+        :param interval: Intervalo em segundos entre os testes de velocidade.
+        """
         self.interval = interval
 
     def run(self):
+        """
+        Executa testes de velocidade continuamente e armazena os resultados.
+        """
         while True:
             result = self.perform_speedtest()
             with results_lock:
@@ -26,6 +34,11 @@ class SpeedTestApp:
             time.sleep(self.interval)
 
     def perform_speedtest(self):
+        """
+        Realiza um único teste de velocidade e devolve os resultados.
+
+        :return: Dicionário que contem o timestamp, velocidade de download, velocidade de upload e latência.
+        """
         st = speedtest.Speedtest()
         st.get_best_server()
         download_speed = round(st.download() / (10**6), 2)
@@ -36,6 +49,11 @@ class SpeedTestApp:
         return {'timestamp': timestamp, 'download_speed': download_speed, 'upload_speed': upload_speed, 'latency': latency}
 
     def save_result_to_csv(self, result):
+        """
+        Aramazena o resultado do teste de velocidade num ficheiro CSV.
+
+        :param result: Dicionário que contem o timestamp, velocidade de download, velocidade de upload e latência.
+        """
         csv_file = 'speedtest_results.csv'
         file_exists = os.path.isfile(csv_file)
         fieldnames = ['timestamp', 'download_speed', 'upload_speed', 'latency']
@@ -48,6 +66,9 @@ class SpeedTestApp:
 
 
 def update_graphs():
+    """
+    Atualiza os gráficos na interface gráfica com os resultados dos testes de velocidade.
+    """
     with results_lock:
         timestamps = [result['timestamp'] for result in results]
         download_speeds = [result['download_speed'] for result in results]
@@ -95,6 +116,9 @@ def update_graphs():
 
 
 def create_gui():
+    """
+    Cria a interface gráfica para exibir os gráficos dos testes de velocidade.
+    """
     global root, canvas, ax
 
     root = tk.Tk()
@@ -112,6 +136,9 @@ def create_gui():
 
 
 def main():
+    """
+    Função principal que inicia a aplicação, executa testes de velocidade e exibe a interface gráfica.
+    """
     global app
     app = SpeedTestApp(interval=10)
     speedtest_thread = threading.Thread(target=app.run, daemon=True)

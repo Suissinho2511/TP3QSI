@@ -1,1 +1,3 @@
 # TP3QSI
+
+Neste trabalho, apresentamos uma aplicação para monitorizar a qualidade do serviço (QoS) fornecida por um provedor de serviços de Internet (ISP), especificamente em termos de velocidade de download, velocidade de upload e latência. A aplicação utiliza a biblioteca Speedtest e uma interface gráfica para exibir os resultados em tempo real. O objetivo é verificar se o ISP está a cumprir os limites mínimos de QoS estabelecidos no contrato.
